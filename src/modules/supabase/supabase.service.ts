@@ -3,7 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { BuyOrderCreated, SellOrderCreated } from '../pooling/decoder';
 
-export type OrderStatus = 'pending' | 'fulfilled' | 'failed';
+export type OrderStatus =
+  | 'accepted'
+  | 'pending_new'
+  | 'new'
+  | 'fill'
+  | 'partial_fill'
+  | 'canceled'
+  | 'expired';
 
 export interface OrderRecord {
   transaction_hash: string;
@@ -17,6 +24,7 @@ export interface OrderRecord {
   price: string;
   limit_price: string;
   order_id: string;
+  alpaca_order_id: string | null;
   created_at_onchain: string;
 }
 
@@ -75,7 +83,8 @@ export class SupabaseService implements OnModuleInit {
     const records: OrderRecord[] = newOrders.map((o) => ({
       transaction_hash: o.txHash,
       order_type: o.type,
-      status: 'pending' as OrderStatus,
+      status: 'accepted' as OrderStatus,
+      alpaca_order_id: null,
       user_pubkey: o.order.user.toString(),
       ticker: o.order.ticker,
       token_mint: o.order.tokenMint.toString(),
@@ -123,5 +132,43 @@ export class SupabaseService implements OnModuleInit {
     }
 
     return { data: (data ?? []) as OrderRecord[], total: count ?? 0 };
+  }
+
+  async getOrdersByStatuses(statuses: OrderStatus[]): Promise<OrderRecord[]> {
+    const { data, error } = await this.supabase
+      .from('orders')
+      .select('*')
+      .in('status', statuses);
+
+    if (error) {
+      this.logger.error(`Failed to fetch orders with statuses ${statuses.join(', ')}: ${error.message}`);
+      throw error;
+    }
+
+    return (data ?? []) as OrderRecord[];
+  }
+
+  async updateOrderStatus(transactionHash: string, status: OrderStatus): Promise<void> {
+    const { error } = await this.supabase
+      .from('orders')
+      .update({ status })
+      .eq('transaction_hash', transactionHash);
+
+    if (error) {
+      this.logger.error(`Failed to update order status for tx ${transactionHash}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async updateAlpacaOrderId(transactionHash: string, alpacaOrderId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('orders')
+      .update({ alpaca_order_id: alpacaOrderId })
+      .eq('transaction_hash', transactionHash);
+
+    if (error) {
+      this.logger.error(`Failed to update alpaca_order_id for tx ${transactionHash}: ${error.message}`);
+      throw error;
+    }
   }
 }

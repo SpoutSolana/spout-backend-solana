@@ -140,6 +140,14 @@ export class PoolingService {
             this.logger.log(
               `Alpaca order placed for ${record.ticker}: ${JSON.stringify(alpacaResponse)}`,
             );
+
+            // Save the Alpaca order ID for status tracking
+            if (alpacaResponse?.id) {
+              await this.supabaseService.updateAlpacaOrderId(
+                record.transaction_hash,
+                alpacaResponse.id,
+              );
+            }
           } catch (error: any) {
             this.logger.error(
               `Failed to place Alpaca order for tx ${record.transaction_hash}: ${error.message}`,

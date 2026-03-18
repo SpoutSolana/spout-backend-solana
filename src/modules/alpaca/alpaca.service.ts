@@ -81,6 +81,34 @@ export class AlpacaService {
     }
   }
 
+  async getOrderStatus(orderId: string): Promise<string> {
+    try {
+      const credentials = Buffer.from(
+        `${this.apiKeyId}:${this.apiSecretKey}`,
+      ).toString('base64');
+
+      const response = await axios.get(
+        `https://broker-api.sandbox.alpaca.markets/v1/trading/accounts/${this.accountId}/orders/${orderId}`,
+        {
+          headers: {
+            accept: 'application/json',
+            authorization: `Basic ${credentials}`,
+          },
+        },
+      );
+
+      return (response.data as any).status;
+    } catch (error: any) {
+      this.logger.error(
+        'Alpaca order status error:',
+        error.response?.data || error.message,
+      );
+      throw new Error(
+        `Failed to check order status: ${error.response?.data?.message || error.message}`,
+      );
+    }
+  }
+
   async placeLimitOrder(
     symbol: string,
     qty: string,
