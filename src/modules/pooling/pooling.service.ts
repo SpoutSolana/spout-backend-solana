@@ -16,17 +16,17 @@ import {
 import idl from './idl/program.json'; // your program's IDL file
 import { EventDecoder, BuyOrderCreated, SellOrderCreated } from './decoder';
 import { Web3Service } from '../web3/web3.service';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class PoolingService {
   private readonly logger = new Logger(PoolingService.name);
   private readonly PROGRAM_ID: PublicKey;
   private readonly connection: Connection;
-  private lastProcessedSignature: string | null = null;
-
   constructor(
     private configService: ConfigService,
     private web3Service: Web3Service,
+    private supabaseService: SupabaseService,
   ) {
     // Initialize the program ID from environment variable
     const programId = this.configService.get<string>('SPOUT_PROGRAM_ID');
@@ -64,14 +64,13 @@ export class PoolingService {
       // Step 5. Fetch recent transaction signatures
       const signatures = await provider.connection.getSignaturesForAddress(
         this.PROGRAM_ID,
-        { 
-          limit: this.lastProcessedSignature ? 5 : 1, 
-          until: this.lastProcessedSignature ?? undefined 
-        },
+        { limit: 5 },
       );
       console.log("Fetched signatures:", signatures.length);
 
-      // Step 6. Loop through each transaction
+      // Step 6. Collect all decoded orders
+      const collectedOrders: { order: BuyOrderCreated | SellOrderCreated; type: 'buy' | 'sell'; txHash: string }[] = [];
+
       for (const sigInfo of signatures) {
         const tx = await provider.connection.getTransaction(sigInfo.signature, {
           commitment: 'confirmed',
@@ -84,61 +83,55 @@ export class PoolingService {
         for (const evt of events) {
           if (evt.name === 'BuyOrderCreated') {
             try {
-              const decodedOrder: BuyOrderCreated = EventDecoder.decodeBuyOrderCreated(evt.data);
-              
+              const decodedOrder = EventDecoder.decodeBuyOrderCreated(evt.data);
+              collectedOrders.push({ order: decodedOrder, type: 'buy', txHash: sigInfo.signature });
+
               this.logger.log(
-                `\nNEW BUY ORDER CREATED:\n` +
+                `\nBUY ORDER DETECTED:\n` +
                 `  User: ${decodedOrder.user.toString()}\n` +
                 `  Ticker: ${decodedOrder.ticker}\n` +
-                `  USDC Amount: ${decodedOrder.usdcAmount.toString()}\n` +
-                `  Asset Amount: ${decodedOrder.assetAmount.toString()}\n` +
-                `  Price: ${decodedOrder.price.toString()}\n` +
-                `  Oracle Timestamp: ${new Date(decodedOrder.oracleTimestamp.toNumber() * 1000).toISOString()}\n` +
+                `  Order ID: ${decodedOrder.orderId.toString()}\n` +
                 `  Transaction: ${sigInfo.signature}`,
               );
-
-              // Call mintToken function after logging
-              await this.web3Service.mintToken(decodedOrder);
-              
-            } catch (error) {
+            } catch (error: any) {
               this.logger.error(`Failed to decode BuyOrderCreated event: ${error.message}`);
             }
-          } 
-          
-          else if (evt.name === 'SellOrderCreated') {
+          } else if (evt.name === 'SellOrderCreated') {
             try {
-              const decodedOrder: SellOrderCreated = EventDecoder.decodeSellOrderCreated(evt.data);
-              
+              const decodedOrder = EventDecoder.decodeSellOrderCreated(evt.data);
+              collectedOrders.push({ order: decodedOrder, type: 'sell', txHash: sigInfo.signature });
+
               this.logger.log(
-                `\nNEW SELL ORDER CREATED:\n` +
+                `\nSELL ORDER DETECTED:\n` +
                 `  User: ${decodedOrder.user.toString()}\n` +
                 `  Ticker: ${decodedOrder.ticker}\n` +
-                `  USDC Amount: ${decodedOrder.usdcAmount.toString()}\n` +
-                `  Asset Amount: ${decodedOrder.assetAmount.toString()}\n` +
-                `  Price: ${decodedOrder.price.toString()}\n` +
-                `  Oracle Timestamp: ${new Date(decodedOrder.oracleTimestamp.toNumber() * 1000).toISOString()}\n` +
+                `  Order ID: ${decodedOrder.orderId.toString()}\n` +
                 `  Transaction: ${sigInfo.signature}`,
               );
-
-              // Call burnToken function after logging
-              await this.web3Service.burnToken(decodedOrder);
-
-            } catch (error) {
+            } catch (error: any) {
               this.logger.error(`Failed to decode SellOrderCreated event: ${error.message}`);
             }
           }
         }
       }
 
-      // Update last processed signature if we processed any transactions
-      if (signatures.length > 0) {
-        // Use the first signature (most recent) as our checkpoint for the next poll
-        this.lastProcessedSignature = signatures[0].signature;
-        this.logger.log(`Updated last processed signature: ${this.lastProcessedSignature}`);
+      // Step 7. Filter duplicates via Supabase and insert new orders
+      if (collectedOrders.length > 0) {
+        const newOrders = await this.supabaseService.processOrders(collectedOrders);
+
+        // Step 8. Process only new orders (mint/burn)
+        for (const record of newOrders) {
+          // TODO: Re-enable mint/burn when ready
+          // if (record.order_type === 'buy') {
+          //   await this.web3Service.mintToken(...);
+          // } else {
+          //   await this.web3Service.burnToken(...);
+          // }
+        }
       }
 
       this.logger.log('Poll cycle complete');
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
         `Error while polling Solana order events: ${error.message}`,
         error.stack,

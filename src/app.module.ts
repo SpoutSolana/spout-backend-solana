@@ -5,6 +5,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PoolingModule } from './modules/pooling/pooling.module';
 import { Web3Module } from './modules/web3/web3.module';
+import { KycModule } from './modules/kyc/kyc.module';
+import { OrdersModule } from './modules/orders/orders.module';
 
 @Module({
   imports: [
@@ -13,8 +15,10 @@ import { Web3Module } from './modules/web3/web3.module';
       envFilePath: '.env',
     }),
     ScheduleModule.forRoot(),
-    PoolingModule, 
-    Web3Module
+    PoolingModule,
+    Web3Module,
+    KycModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

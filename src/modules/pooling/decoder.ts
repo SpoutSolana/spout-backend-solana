@@ -5,19 +5,25 @@ import { BN } from '@coral-xyz/anchor';
 export interface BuyOrderCreated {
   user: PublicKey;
   ticker: string;
+  tokenMint: PublicKey;
   usdcAmount: BN;
   assetAmount: BN;
   price: BN;
-  oracleTimestamp: BN;
+  limitPrice: BN;
+  orderId: BN;
+  createdAt: BN;
 }
 
 export interface SellOrderCreated {
   user: PublicKey;
   ticker: string;
+  tokenMint: PublicKey;
   usdcAmount: BN;
   assetAmount: BN;
   price: BN;
-  oracleTimestamp: BN;
+  limitPrice: BN;
+  orderId: BN;
+  createdAt: BN;
 }
 
 // Event decoder class
@@ -29,10 +35,13 @@ export class EventDecoder {
     return {
       user: new PublicKey(data.user),
       ticker: data.ticker,
+      tokenMint: new PublicKey(data.tokenMint || data.token_mint),
       usdcAmount: new BN(data.usdcAmount || data.usdc_amount),
       assetAmount: new BN(data.assetAmount || data.asset_amount),
       price: new BN(data.price),
-      oracleTimestamp: new BN(data.oracleTimestamp || data.oracle_timestamp),
+      limitPrice: new BN(data.limitPrice || data.limit_price),
+      orderId: new BN(data.orderId || data.order_id),
+      createdAt: new BN(data.createdAt || data.created_at),
     };
   }
 
@@ -43,10 +52,13 @@ export class EventDecoder {
     return {
       user: new PublicKey(data.user),
       ticker: data.ticker,
+      tokenMint: new PublicKey(data.tokenMint || data.token_mint),
       usdcAmount: new BN(data.usdcAmount || data.usdc_amount),
       assetAmount: new BN(data.assetAmount || data.asset_amount),
       price: new BN(data.price),
-      oracleTimestamp: new BN(data.oracleTimestamp || data.oracle_timestamp),
+      limitPrice: new BN(data.limitPrice || data.limit_price),
+      orderId: new BN(data.orderId || data.order_id),
+      createdAt: new BN(data.createdAt || data.created_at),
     };
   }
 }

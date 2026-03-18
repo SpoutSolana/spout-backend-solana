@@ -129,7 +129,7 @@ export class Web3Service {
       console.log(`Mint Transaction: ${tx}`);
 
       this.logger.log(`Mint operation completed for user: ${userPubkey.toString()}`);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error in mintToken: ${error.message}`, error.stack);
       throw error;
     }
@@ -201,7 +201,7 @@ export class Web3Service {
 
       this.logger.log(`User Attestation PDA: ${userAttestationPda.toString()}`);
             
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error in burnToken: ${error.message}`, error.stack);
       throw error;
     }
@@ -277,7 +277,7 @@ export class Web3Service {
       } else {
         this.logger.log(`ATA already exists for user: ${userPubkey.toString()}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error checking/creating ATA: ${error.message}`);
       throw error;
     }
@@ -325,7 +325,7 @@ export class Web3Service {
       } else {
         this.logger.log(`USDC ATA already exists for user: ${userPubkey.toString()}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error checking/creating USDC ATA: ${error.message}`);
       throw error;
     }
@@ -365,7 +365,7 @@ export class Web3Service {
       this.logger.log(`USDC mint completed successfully. Transaction: ${signature}`);
       console.log(`USDC Mint Transaction: ${signature}`);
       
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error minting USDC tokens: ${error.message}`, error.stack);
       throw error;
     }

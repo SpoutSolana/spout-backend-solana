@@ -1,0 +1,304 @@
+{
+    "address": "AA6GAVVBbLepqYqMmjhWJRgnC9viTtMJdb11nQyms5Bb",
+    "metadata": {
+      "name": "onchain_id",
+      "version": "0.1.0",
+      "spec": "0.1.0",
+      "description": "On-chain identity (onchainID) for KYC: one PDA per user, link wallets, verified by authority"
+    },
+    "instructions": [
+      {
+        "name": "create_identity",
+        "docs": [
+          "Creates an on-chain identity PDA for the signer (authority).",
+          "Only the authority can add wallets later."
+        ],
+        "discriminator": [
+          12,
+          253,
+          209,
+          41,
+          176,
+          51,
+          195,
+          179
+        ],
+        "accounts": [
+          {
+            "name": "authority",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "identity",
+            "writable": true
+          },
+          {
+            "name": "system_program"
+          }
+        ],
+        "args": []
+      },
+      {
+        "name": "create_identity_for_user",
+        "docs": [
+          "Creates an identity for a user. Only the config authority can call this.",
+          "The user (identity owner) can later add more wallets via add_wallet."
+        ],
+        "discriminator": [
+          116,
+          176,
+          41,
+          119,
+          86,
+          113,
+          61,
+          40
+        ],
+        "accounts": [
+          {
+            "name": "authority",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "config"
+          },
+          {
+            "name": "user"
+          },
+          {
+            "name": "identity",
+            "writable": true
+          },
+          {
+            "name": "system_program"
+          }
+        ],
+        "args": []
+      },
+      {
+        "name": "add_wallet",
+        "docs": [
+          "Adds a wallet to the identity. Only the identity's authority can call this.",
+          "Inputs: Wallet context & wallet user wants to push to his onchainID"
+        ],
+        "discriminator": [
+          175,
+          244,
+          47,
+          158,
+          167,
+          155,
+          3,
+          162
+        ],
+        "accounts": [
+          {
+            "name": "authority",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "identity",
+            "writable": true
+          }
+        ],
+        "args": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          }
+        ]
+      },
+      {
+        "name": "set_verified",
+        "docs": [
+          "Sets the verified status on an identity. Only the program config authority can call this.",
+          "Call this after completing off-chain KYC (e.g. Persona) for that identity."
+        ],
+        "discriminator": [
+          1,
+          156,
+          246,
+          244,
+          116,
+          25,
+          45,
+          152
+        ],
+        "accounts": [
+          {
+            "name": "authority",
+            "signer": true
+          },
+          {
+            "name": "config"
+          },
+          {
+            "name": "identity",
+            "writable": true
+          }
+        ],
+        "args": [
+          {
+            "name": "verified",
+            "type": "bool"
+          }
+        ]
+      },
+      {
+        "name": "initialize_config",
+        "docs": [
+          "One-time init of program config. Sets who can call set_verified."
+        ],
+        "discriminator": [
+          208,
+          127,
+          21,
+          1,
+          194,
+          190,
+          196,
+          70
+        ],
+        "accounts": [
+          {
+            "name": "authority",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "config",
+            "writable": true
+          },
+          {
+            "name": "system_program"
+          }
+        ],
+        "args": []
+      }
+    ],
+    "accounts": [
+      {
+        "name": "onchain_id::state::Config",
+        "discriminator": [
+          155,
+          12,
+          170,
+          224,
+          30,
+          250,
+          204,
+          130
+        ]
+      },
+      {
+        "name": "onchain_id::state::Identity",
+        "discriminator": [
+          58,
+          132,
+          5,
+          12,
+          176,
+          164,
+          85,
+          112
+        ]
+      }
+    ],
+    "types": [
+      {
+        "name": "onchain_id::state::Config",
+        "docs": [
+          "Program config: who is allowed to set `verified` on identities (after off-chain KYC)."
+        ],
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "authority",
+              "docs": [
+                "Authority that can call set_verified (e.g. your backend after Persona KYC)."
+              ],
+              "type": "pubkey"
+            },
+            {
+              "name": "bump",
+              "type": "u8"
+            }
+          ]
+        }
+      },
+      {
+        "name": "onchain_id::state::Identity",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "authority",
+              "docs": [
+                "The user who owns this identity; only they can add/remove wallets."
+              ],
+              "type": "pubkey"
+            },
+            {
+              "name": "bump",
+              "docs": [
+                "PDA bump."
+              ],
+              "type": "u8"
+            },
+            {
+              "name": "verified",
+              "docs": [
+                "Set by program authority (later step) after off-chain KYC."
+              ],
+              "type": "bool"
+            },
+            {
+              "name": "wallets",
+              "docs": [
+                "Wallets linked to this identity (e.g. can receive mint to these)."
+              ],
+              "type": {
+                "vec": "pubkey"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "errors": [
+      {
+        "code": 6000,
+        "name": "NotAuthority",
+        "msg": "Only the identity authority can perform this action"
+      },
+      {
+        "code": 6001,
+        "name": "WalletAlreadyAdded",
+        "msg": "This wallet is already linked to this identity"
+      },
+      {
+        "code": 6002,
+        "name": "MaxWalletsReached",
+        "msg": "Maximum number of linked wallets reached"
+      },
+      {
+        "code": 6003,
+        "name": "NotConfigAuthority",
+        "msg": "Only the program config authority can set verified status"
+      },
+      {
+        "code": 6004,
+        "name": "InvalidEd25519Instruction",
+        "msg": "Ed25519 verification instruction missing or invalid"
+      },
+      {
+        "code": 6005,
+        "name": "SignatureMismatch",
+        "msg": "Signature or message does not match verified instruction"
+      }
+    ]
+  }
