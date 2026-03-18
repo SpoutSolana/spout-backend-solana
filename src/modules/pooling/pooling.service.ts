@@ -17,6 +17,7 @@ import idl from './idl/program.json'; // your program's IDL file
 import { EventDecoder, BuyOrderCreated, SellOrderCreated } from './decoder';
 import { Web3Service } from '../web3/web3.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { AlpacaService } from '../alpaca/alpaca.service';
 
 @Injectable()
 export class PoolingService {
@@ -27,6 +28,7 @@ export class PoolingService {
     private configService: ConfigService,
     private web3Service: Web3Service,
     private supabaseService: SupabaseService,
+    private alpacaService: AlpacaService,
   ) {
     // Initialize the program ID from environment variable
     const programId = this.configService.get<string>('SPOUT_PROGRAM_ID');
@@ -119,7 +121,7 @@ export class PoolingService {
       if (collectedOrders.length > 0) {
         const newOrders = await this.supabaseService.processOrders(collectedOrders);
 
-        // Step 8. Process only new orders (mint/burn)
+        // Step 8. Process only new orders (mint/burn + Alpaca)
         for (const record of newOrders) {
           // TODO: Re-enable mint/burn when ready
           // if (record.order_type === 'buy') {
@@ -127,6 +129,22 @@ export class PoolingService {
           // } else {
           //   await this.web3Service.burnToken(...);
           // }
+
+          // Place market order on Alpaca
+          try {
+            const alpacaResponse = await this.alpacaService.placeOrder(
+              record.ticker,
+              record.asset_amount,
+              record.order_type as 'buy' | 'sell',
+            );
+            this.logger.log(
+              `Alpaca order placed for ${record.ticker}: ${JSON.stringify(alpacaResponse)}`,
+            );
+          } catch (error: any) {
+            this.logger.error(
+              `Failed to place Alpaca order for tx ${record.transaction_hash}: ${error.message}`,
+            );
+          }
         }
       }
 
