@@ -8,7 +8,9 @@ export type OrderStatus =
   | 'pending_new'
   | 'new'
   | 'fill'
+  | 'filled'
   | 'partial_fill'
+  | 'partially_filled'
   | 'canceled'
   | 'expired';
 
@@ -48,12 +50,12 @@ export class SupabaseService implements OnModuleInit {
   }
 
   /**
-   * Filter out orders that already exist in the database by transaction hash,
-   * then insert the new ones.
+   * Filter out orders that already exist in the database by transaction hash.
+   * Returns only the new (unseen) orders without inserting them.
    */
-  async processOrders(
+  async filterNewOrders(
     orders: { order: BuyOrderCreated | SellOrderCreated; type: 'buy' | 'sell'; txHash: string }[],
-  ): Promise<OrderRecord[]> {
+  ): Promise<{ order: BuyOrderCreated | SellOrderCreated; type: 'buy' | 'sell'; txHash: string }[]> {
     if (orders.length === 0) return [];
 
     const txHashes = orders.map((o) => o.txHash);
@@ -71,44 +73,51 @@ export class SupabaseService implements OnModuleInit {
 
     const existingHashes = new Set(existing?.map((r) => r.transaction_hash) ?? []);
 
-    // Filter to only new orders
     const newOrders = orders.filter((o) => !existingHashes.has(o.txHash));
 
     if (newOrders.length === 0) {
-      this.logger.log('No new orders to insert — all already exist in database');
-      return [];
+      this.logger.log('No new orders found');
     }
 
-    // Map to database records
-    const records: OrderRecord[] = newOrders.map((o) => ({
-      transaction_hash: o.txHash,
-      order_type: o.type,
-      status: 'accepted' as OrderStatus,
-      alpaca_order_id: null,
-      user_pubkey: o.order.user.toString(),
-      ticker: o.order.ticker,
-      token_mint: o.order.tokenMint.toString(),
-      usdc_amount: o.order.usdcAmount.toString(),
-      asset_amount: o.order.assetAmount.toString(),
-      price: o.order.price.toString(),
-      limit_price: o.order.limitPrice.toString(),
-      order_id: o.order.orderId.toString(),
-      created_at_onchain: new Date(o.order.createdAt.toNumber() * 1000).toISOString(),
-    }));
+    return newOrders;
+  }
 
-    // Insert new orders
+  /**
+   * Insert a single order into the database with the Alpaca order ID already set.
+   */
+  async insertOrder(
+    orderData: { order: BuyOrderCreated | SellOrderCreated; type: 'buy' | 'sell'; txHash: string },
+    alpacaOrderId: string,
+  ): Promise<OrderRecord> {
+    const record: OrderRecord = {
+      transaction_hash: orderData.txHash,
+      order_type: orderData.type,
+      status: 'accepted' as OrderStatus,
+      alpaca_order_id: alpacaOrderId,
+      user_pubkey: orderData.order.user.toString(),
+      ticker: orderData.order.ticker,
+      token_mint: orderData.order.tokenMint.toString(),
+      usdc_amount: orderData.order.usdcAmount.toString(),
+      asset_amount: orderData.order.assetAmount.toString(),
+      price: orderData.order.price.toString(),
+      limit_price: orderData.order.limitPrice.toString(),
+      order_id: orderData.order.orderId.toString(),
+      created_at_onchain: new Date(orderData.order.createdAt.toNumber() * 1000).toISOString(),
+    };
+
     const { data, error: insertError } = await this.supabase
       .from('orders')
-      .insert(records)
-      .select();
+      .insert(record)
+      .select()
+      .single();
 
     if (insertError) {
-      this.logger.error(`Failed to insert orders: ${insertError.message}`);
+      this.logger.error(`Failed to insert order: ${insertError.message}`);
       throw insertError;
     }
 
-    this.logger.log(`Inserted ${records.length} new order(s) into database`);
-    return data as OrderRecord[];
+    this.logger.log(`Inserted order for tx ${orderData.txHash} with alpaca_order_id ${alpacaOrderId}`);
+    return data as OrderRecord;
   }
 
   async getOrdersByUser(
