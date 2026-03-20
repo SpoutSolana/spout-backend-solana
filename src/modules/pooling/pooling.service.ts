@@ -64,7 +64,7 @@ export class PoolingService {
       // Fetch recent transaction signatures
       const signatures = await provider.connection.getSignaturesForAddress(
         this.PROGRAM_ID,
-        { limit: 5 },
+        { limit: 2 },
       );
 
       // Collect all decoded orders
@@ -116,8 +116,7 @@ export class PoolingService {
           try {
             const alpacaResponse = await this.alpacaService.placeOrder(
               order.ticker,
-              //order.assetAmount.toString(), {update the code here later}
-              '1',
+              (Number(order.assetAmount.toString()) / 1e6).toFixed(9),
               orderData.type,
             );
             this.logger.log(

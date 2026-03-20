@@ -1,1382 +1,2162 @@
 {
-    "address": "4ADjAzGERDD1TvNPAJCz5THZcPMaY3hzPAmbx5hDNcM6",
-    "metadata": {
-      "name": "spout_orders",
-      "version": "0.1.0",
-      "spec": "0.1.0",
-      "description": "KYC-gated OTC order system for security tokens"
-    },
-    "instructions": [
-      {
-        "name": "cancel_order",
-        "docs": [
-          "Cancel an order — user or authority, returns USDC for buy orders"
-        ],
-        "discriminator": [
-          95,
-          129,
-          237,
-          240,
-          8,
-          49,
-          223,
-          132
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "pending_order",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "pending_order.user",
-                  "account": "PendingOrder"
-                },
-                {
-                  "kind": "account",
-                  "path": "pending_order.order_id",
-                  "account": "PendingOrder"
-                }
-              ]
-            }
-          },
-          {
-            "name": "usdc_escrow",
-            "docs": [
-              "USDC escrow (needed for buy order refunds)"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    117,
-                    115,
-                    100,
-                    99,
-                    95,
-                    101,
-                    115,
-                    99,
-                    114,
-                    111,
-                    119
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "orders_authority",
-            "docs": [
-              "Orders authority PDA (signer for escrow transfers + receives rent on close)"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "user_usdc_account",
-            "docs": [
-              "User's USDC account (for buy order refunds)"
-            ],
-            "writable": true
-          },
-          {
-            "name": "canceller",
-            "docs": [
-              "Must be either the order's user or the config authority"
-            ],
-            "signer": true
-          },
-          {
-            "name": "token_program",
-            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          }
-        ],
-        "args": []
-      },
-      {
-        "name": "create_oracle_config",
-        "docs": [
-          "Create an oracle config for a token mint with a Chainlink Data Streams feed_id"
-        ],
-        "discriminator": [
-          187,
-          183,
-          232,
-          175,
-          14,
-          52,
-          13,
-          51
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "oracle_config",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    97,
-                    99,
-                    108,
-                    101,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "token_mint"
-                }
-              ]
-            }
-          },
-          {
-            "name": "token_mint"
-          },
-          {
-            "name": "authority",
-            "writable": true,
-            "signer": true,
-            "relations": [
-              "order_config"
-            ]
-          },
-          {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
-          }
-        ],
-        "args": [
-          {
-            "name": "feed_id",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "price_decimals",
-            "type": "u8"
-          },
-          {
-            "name": "max_staleness_seconds",
-            "type": "i64"
-          }
-        ]
-      },
-      {
-        "name": "fulfill_buy_order",
-        "docs": [
-          "Fulfill a buy order — CPI into SSTS to mint security tokens to buyer, close PDA"
-        ],
-        "discriminator": [
-          14,
-          90,
-          99,
-          61,
-          74,
-          244,
-          197,
-          101
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "pending_order",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "pending_order.user",
-                  "account": "PendingOrder"
-                },
-                {
-                  "kind": "account",
-                  "path": "pending_order.order_id",
-                  "account": "PendingOrder"
-                }
-              ]
-            }
-          },
-          {
-            "name": "orders_authority",
-            "docs": [
-              "OrdersAuthority vault PDA — receives rent back on close"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "authority",
-            "signer": true,
-            "relations": [
-              "order_config"
-            ]
-          },
-          {
-            "name": "ssts_program"
-          },
-          {
-            "name": "token_mint",
-            "writable": true
-          },
-          {
-            "name": "ssts_verification_config"
-          },
-          {
-            "name": "instructions_sysvar",
-            "address": "Sysvar1nstructions1111111111111111111111111"
-          },
-          {
-            "name": "ssts_mint_authority"
-          },
-          {
-            "name": "buyer_token_account",
-            "writable": true
-          },
-          {
-            "name": "token_2022_program",
-            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-          }
-        ],
-        "args": []
-      },
-      {
-        "name": "fulfill_sell_order",
-        "docs": [
-          "Fulfill a sell order — CPI into SSTS to burn tokens, transfer USDC to seller, close PDA"
-        ],
-        "discriminator": [
-          15,
-          43,
-          67,
-          7,
-          137,
-          226,
-          7,
-          122
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "pending_order",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "pending_order.user",
-                  "account": "PendingOrder"
-                },
-                {
-                  "kind": "account",
-                  "path": "pending_order.order_id",
-                  "account": "PendingOrder"
-                }
-              ]
-            }
-          },
-          {
-            "name": "authority",
-            "signer": true,
-            "relations": [
-              "order_config"
-            ]
-          },
-          {
-            "name": "ssts_program"
-          },
-          {
-            "name": "token_mint",
-            "writable": true
-          },
-          {
-            "name": "ssts_verification_config"
-          },
-          {
-            "name": "instructions_sysvar",
-            "address": "Sysvar1nstructions1111111111111111111111111"
-          },
-          {
-            "name": "ssts_permanent_delegate"
-          },
-          {
-            "name": "seller_token_account",
-            "writable": true
-          },
-          {
-            "name": "token_2022_program",
-            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-          },
-          {
-            "name": "usdc_escrow",
-            "docs": [
-              "USDC escrow for payout to seller"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    117,
-                    115,
-                    100,
-                    99,
-                    95,
-                    101,
-                    115,
-                    99,
-                    114,
-                    111,
-                    119
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "orders_authority",
-            "docs": [
-              "Orders authority PDA (signer for escrow transfers + receives rent on close)"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "seller_usdc_account",
-            "docs": [
-              "Seller's USDC account for payout"
-            ],
-            "writable": true
-          },
-          {
-            "name": "token_program",
-            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          }
-        ],
-        "args": []
-      },
-      {
-        "name": "fund_vault",
-        "docs": [
-          "Fund the OrdersAuthority vault with SOL (authority only)"
-        ],
-        "discriminator": [
-          26,
-          33,
-          207,
-          242,
-          119,
-          108,
-          134,
-          73
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "orders_authority",
-            "docs": [
-              "OrdersAuthority vault PDA — receives SOL"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "authority",
-            "writable": true,
-            "signer": true,
-            "relations": [
-              "order_config"
-            ]
-          },
-          {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
-          }
-        ],
-        "args": [
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "initialize_config",
-        "docs": [
-          "Initialize the orders config, authority PDA, and USDC escrow"
-        ],
-        "discriminator": [
-          208,
-          127,
-          21,
-          1,
-          194,
-          190,
-          196,
-          70
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "orders_authority",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "usdc_mint"
-          },
-          {
-            "name": "usdc_escrow",
-            "docs": [
-              "USDC escrow token account owned by orders_authority PDA"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    117,
-                    115,
-                    100,
-                    99,
-                    95,
-                    101,
-                    115,
-                    99,
-                    114,
-                    111,
-                    119
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "payer",
-            "writable": true,
-            "signer": true
-          },
-          {
-            "name": "token_program",
-            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          },
-          {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
-          }
-        ],
-        "args": []
-      },
-      {
-        "name": "place_buy_order",
-        "docs": [
-          "Place a KYC-gated buy order — escrows USDC in escrow"
-        ],
-        "discriminator": [
-          47,
-          253,
-          241,
-          214,
-          167,
-          204,
-          11,
-          39
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "oracle_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    97,
-                    99,
-                    108,
-                    101,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "oracle_config.token_mint",
-                  "account": "OracleConfig"
-                }
-              ]
-            }
-          },
-          {
-            "name": "chainlink_verifier_program"
-          },
-          {
-            "name": "verifier_config_pda"
-          },
-          {
-            "name": "access_controller"
-          },
-          {
-            "name": "report_config_pda"
-          },
-          {
-            "name": "pending_order",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "user"
-                },
-                {
-                  "kind": "arg",
-                  "path": "order_id"
-                }
-              ]
-            }
-          },
-          {
-            "name": "user_usdc_account",
-            "docs": [
-              "User's USDC token account"
-            ],
-            "writable": true
-          },
-          {
-            "name": "usdc_escrow",
-            "docs": [
-              "Program USDC escrow"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    117,
-                    115,
-                    100,
-                    99,
-                    95,
-                    101,
-                    115,
-                    99,
-                    114,
-                    111,
-                    119
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "identity",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    105,
-                    100,
-                    101,
-                    110,
-                    116,
-                    105,
-                    116,
-                    121
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "user"
-                }
-              ],
-              "program": {
+  "address": "4ADjAzGERDD1TvNPAJCz5THZcPMaY3hzPAmbx5hDNcM6",
+  "metadata": {
+    "name": "spout_orders",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "KYC-gated OTC order system for security tokens"
+  },
+  "instructions": [
+    {
+      "name": "cancel_order",
+      "docs": [
+        "Cancel an order — user or authority, returns USDC for buy orders"
+      ],
+      "discriminator": [
+        95,
+        129,
+        237,
+        240,
+        8,
+        49,
+        223,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
                 "kind": "const",
                 "value": [
-                  136,
-                  13,
-                  91,
-                  215,
-                  16,
-                  96,
-                  96,
-                  232,
-                  196,
-                  77,
-                  86,
-                  238,
-                  89,
-                  41,
-                  46,
-                  26,
-                  17,
-                  193,
-                  171,
+                  111,
+                  114,
+                  100,
                   101,
-                  81,
-                  101,
-                  42,
-                  108,
-                  174,
-                  176,
-                  116,
-                  118,
-                  191,
-                  2,
-                  172,
-                  198
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
                 ]
               }
-            }
-          },
-          {
-            "name": "user",
-            "docs": [
-              "The user placing the order"
+            ]
+          }
+        },
+        {
+          "name": "pending_order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pending_order.user",
+                "account": "PendingOrder"
+              },
+              {
+                "kind": "account",
+                "path": "pending_order.order_id",
+                "account": "PendingOrder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_escrow",
+          "docs": [
+            "USDC escrow (needed for buy order refunds)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "docs": [
+            "Orders authority PDA (signer for escrow transfers + receives rent on close)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_usdc_account",
+          "docs": [
+            "User's USDC account (for buy order refunds)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "canceller",
+          "docs": [
+            "Must be either the order's user or the config authority"
+          ],
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_usdc_escrow",
+      "docs": [
+        "Close the USDC escrow (authority only, must be empty)"
+      ],
+      "discriminator": [
+        187,
+        217,
+        193,
+        23,
+        224,
+        246,
+        97,
+        114
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_oracle_config",
+      "docs": [
+        "Create an oracle config for a token mint with a Chainlink Data Streams feed_id"
+      ],
+      "discriminator": [
+        187,
+        183,
+        232,
+        175,
+        14,
+        52,
+        13,
+        51
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "feed_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "price_decimals",
+          "type": "u8"
+        },
+        {
+          "name": "max_staleness_seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "fulfill_buy_order",
+      "docs": [
+        "Fulfill a buy order — CPI into SSTS to mint security tokens to buyer, close PDA"
+      ],
+      "discriminator": [
+        14,
+        90,
+        99,
+        61,
+        74,
+        244,
+        197,
+        101
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pending_order.user",
+                "account": "PendingOrder"
+              },
+              {
+                "kind": "account",
+                "path": "pending_order.order_id",
+                "account": "PendingOrder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "docs": [
+            "OrdersAuthority vault PDA — receives rent back on close"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        },
+        {
+          "name": "ssts_program"
+        },
+        {
+          "name": "token_mint",
+          "writable": true
+        },
+        {
+          "name": "ssts_verification_config"
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "ssts_mint_authority"
+        },
+        {
+          "name": "buyer_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fulfill_sell_order",
+      "docs": [
+        "Fulfill a sell order — CPI into SSTS to burn tokens, transfer USDC to seller, close PDA"
+      ],
+      "discriminator": [
+        15,
+        43,
+        67,
+        7,
+        137,
+        226,
+        7,
+        122
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pending_order.user",
+                "account": "PendingOrder"
+              },
+              {
+                "kind": "account",
+                "path": "pending_order.order_id",
+                "account": "PendingOrder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        },
+        {
+          "name": "ssts_program"
+        },
+        {
+          "name": "token_mint",
+          "writable": true
+        },
+        {
+          "name": "ssts_verification_config"
+        },
+        {
+          "name": "instructions_sysvar",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
+          "name": "ssts_permanent_delegate"
+        },
+        {
+          "name": "seller_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "usdc_escrow",
+          "docs": [
+            "USDC escrow for payout to seller"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "docs": [
+            "Orders authority PDA (signer for escrow transfers + receives rent on close)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_usdc_account",
+          "docs": [
+            "Seller's USDC account for payout"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fund_vault",
+      "docs": [
+        "Fund the OrdersAuthority vault with SOL (authority only)"
+      ],
+      "discriminator": [
+        26,
+        33,
+        207,
+        242,
+        119,
+        108,
+        134,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "docs": [
+            "OrdersAuthority vault PDA — receives SOL"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "init_usdc_escrow",
+      "docs": [
+        "Initialize a new USDC escrow with the current usdc_mint (authority only)"
+      ],
+      "discriminator": [
+        238,
+        252,
+        200,
+        72,
+        188,
+        220,
+        101,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "usdc_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_config",
+      "docs": [
+        "Initialize the orders config, authority PDA, and USDC escrow"
+      ],
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "usdc_escrow",
+          "docs": [
+            "USDC escrow token account owned by orders_authority PDA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "place_buy_order",
+      "docs": [
+        "Place a KYC-gated buy order — escrows USDC in escrow"
+      ],
+      "discriminator": [
+        47,
+        253,
+        241,
+        214,
+        167,
+        204,
+        11,
+        39
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_config.token_mint",
+                "account": "OracleConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "chainlink_verifier_program"
+        },
+        {
+          "name": "verifier_config_pda"
+        },
+        {
+          "name": "access_controller"
+        },
+        {
+          "name": "report_config_pda"
+        },
+        {
+          "name": "pending_order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "order_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_usdc_account",
+          "docs": [
+            "User's USDC token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "usdc_escrow",
+          "docs": [
+            "Program USDC escrow"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "identity",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
             ],
-            "signer": true
-          },
-          {
-            "name": "orders_authority",
-            "docs": [
-              "OrdersAuthority vault PDA — pays rent for PendingOrder creation"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
+            "program": {
+              "kind": "const",
+              "value": [
+                136,
+                13,
+                91,
+                215,
+                16,
+                96,
+                96,
+                232,
+                196,
+                77,
+                86,
+                238,
+                89,
+                41,
+                46,
+                26,
+                17,
+                193,
+                171,
+                101,
+                81,
+                101,
+                42,
+                108,
+                174,
+                176,
+                116,
+                118,
+                191,
+                2,
+                172,
+                198
               ]
             }
-          },
-          {
-            "name": "token_program",
-            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          },
-          {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
           }
-        ],
-        "args": [
+        },
+        {
+          "name": "user",
+          "docs": [
+            "The user placing the order"
+          ],
+          "signer": true
+        },
+        {
+          "name": "orders_authority",
+          "docs": [
+            "OrdersAuthority vault PDA — pays rent for PendingOrder creation"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "order_id",
+          "type": "u64"
+        },
+        {
+          "name": "ticker",
+          "type": "string"
+        },
+        {
+          "name": "usdc_amount",
+          "type": "u64"
+        },
+        {
+          "name": "limit_price",
+          "type": "u128"
+        },
+        {
+          "name": "identity_bump",
+          "type": "u8"
+        },
+        {
+          "name": "signed_report",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "place_sell_order",
+      "docs": [
+        "Place a KYC-gated sell order — event-only, no token escrow"
+      ],
+      "discriminator": [
+        254,
+        177,
+        180,
+        104,
+        171,
+        194,
+        79,
+        86
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_config.token_mint",
+                "account": "OracleConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "chainlink_verifier_program"
+        },
+        {
+          "name": "verifier_config_pda"
+        },
+        {
+          "name": "access_controller"
+        },
+        {
+          "name": "report_config_pda"
+        },
+        {
+          "name": "pending_order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "order_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "identity",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                136,
+                13,
+                91,
+                215,
+                16,
+                96,
+                96,
+                232,
+                196,
+                77,
+                86,
+                238,
+                89,
+                41,
+                46,
+                26,
+                17,
+                193,
+                171,
+                101,
+                81,
+                101,
+                42,
+                108,
+                174,
+                176,
+                116,
+                118,
+                191,
+                2,
+                172,
+                198
+              ]
+            }
+          }
+        },
+        {
+          "name": "user",
+          "docs": [
+            "The user placing the order"
+          ],
+          "signer": true
+        },
+        {
+          "name": "orders_authority",
+          "docs": [
+            "OrdersAuthority vault PDA — pays rent for PendingOrder creation"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "order_id",
+          "type": "u64"
+        },
+        {
+          "name": "ticker",
+          "type": "string"
+        },
+        {
+          "name": "asset_amount",
+          "type": "u64"
+        },
+        {
+          "name": "limit_price",
+          "type": "u128"
+        },
+        {
+          "name": "identity_bump",
+          "type": "u8"
+        },
+        {
+          "name": "signed_report",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "update_authority",
+      "docs": [
+        "Transfer config authority to a new pubkey (authority only)"
+      ],
+      "discriminator": [
+        32,
+        46,
+        64,
+        28,
+        149,
+        75,
+        243,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_oracle_config",
+      "docs": [
+        "Update an oracle config (authority only) — change feed_id, decimals, or staleness"
+      ],
+      "discriminator": [
+        83,
+        16,
+        11,
+        254,
+        57,
+        99,
+        156,
+        58
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_config.token_mint",
+                "account": "OracleConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "feed_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "price_decimals",
+          "type": "u8"
+        },
+        {
+          "name": "max_staleness_seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "update_usdc_mint",
+      "docs": [
+        "Update the USDC mint in the order config (authority only)"
+      ],
+      "discriminator": [
+        131,
+        156,
+        29,
+        130,
+        237,
+        52,
+        110,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_usdc_mint",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_usdc",
+      "docs": [
+        "Withdraw USDC from the escrow (authority only)"
+      ],
+      "discriminator": [
+        114,
+        49,
+        72,
+        184,
+        27,
+        156,
+        243,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "order_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  100,
+                  99,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "orders_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  115,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority_usdc_account",
+          "docs": [
+            "Authority's USDC token account"
+          ],
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "order_config"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "OracleConfig",
+      "discriminator": [
+        133,
+        196,
+        152,
+        50,
+        27,
+        21,
+        145,
+        254
+      ]
+    },
+    {
+      "name": "OrderConfig",
+      "discriminator": [
+        33,
+        99,
+        157,
+        195,
+        47,
+        105,
+        13,
+        57
+      ]
+    },
+    {
+      "name": "OrdersAuthority",
+      "discriminator": [
+        171,
+        190,
+        198,
+        185,
+        71,
+        196,
+        124,
+        231
+      ]
+    },
+    {
+      "name": "PendingOrder",
+      "discriminator": [
+        37,
+        33,
+        135,
+        93,
+        153,
+        120,
+        206,
+        95
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BuyOrderCreated",
+      "discriminator": [
+        110,
+        19,
+        133,
+        233,
+        185,
+        79,
+        4,
+        170
+      ]
+    },
+    {
+      "name": "BuyOrderFulfilled",
+      "discriminator": [
+        172,
+        33,
+        30,
+        94,
+        211,
+        102,
+        216,
+        54
+      ]
+    },
+    {
+      "name": "OrderCancelled",
+      "discriminator": [
+        108,
+        56,
+        128,
+        68,
+        168,
+        113,
+        168,
+        239
+      ]
+    },
+    {
+      "name": "SellOrderCreated",
+      "discriminator": [
+        24,
+        91,
+        248,
+        209,
+        136,
+        163,
+        239,
+        240
+      ]
+    },
+    {
+      "name": "SellOrderFulfilled",
+      "discriminator": [
+        8,
+        4,
+        10,
+        145,
+        25,
+        223,
+        46,
+        179
+      ]
+    },
+    {
+      "name": "UsdcWithdrawn",
+      "discriminator": [
+        55,
+        162,
+        160,
+        117,
+        221,
+        33,
+        197,
+        163
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6001,
+      "name": "Paused",
+      "msg": "Orders are paused"
+    },
+    {
+      "code": 6002,
+      "name": "ZeroPrice",
+      "msg": "Price feed has zero price"
+    },
+    {
+      "code": 6003,
+      "name": "KycNotVerified",
+      "msg": "KYC identity not verified"
+    },
+    {
+      "code": 6004,
+      "name": "IdentityMismatch",
+      "msg": "Identity authority does not match user"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidIdentity",
+      "msg": "Invalid identity account"
+    },
+    {
+      "code": 6006,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidAccount",
+      "msg": "Invalid account"
+    },
+    {
+      "code": 6008,
+      "name": "NotBuyOrder",
+      "msg": "Order is not a buy order"
+    },
+    {
+      "code": 6009,
+      "name": "OraclePriceStale",
+      "msg": "Oracle price is stale"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidPriceFeed",
+      "msg": "Invalid price feed"
+    },
+    {
+      "code": 6011,
+      "name": "NotSellOrder",
+      "msg": "Order is not a sell order"
+    },
+    {
+      "code": 6012,
+      "name": "TokenMintMismatch",
+      "msg": "Token mint mismatch"
+    },
+    {
+      "code": 6013,
+      "name": "SstsCpiFailed",
+      "msg": "SSTS CPI failed"
+    },
+    {
+      "code": 6014,
+      "name": "InsufficientEscrowBalance",
+      "msg": "Insufficient escrow balance"
+    },
+    {
+      "code": 6015,
+      "name": "InsufficientVaultBalance",
+      "msg": "Vault has insufficient lamports for rent"
+    }
+  ],
+  "types": [
+    {
+      "name": "BuyOrderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            "name": "order_id",
-            "type": "u64"
+            "name": "user",
+            "type": "pubkey"
           },
           {
             "name": "ticker",
             "type": "string"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
           },
           {
             "name": "usdc_amount",
             "type": "u64"
           },
           {
-            "name": "limit_price",
+            "name": "asset_amount",
             "type": "u64"
           },
           {
-            "name": "identity_bump",
-            "type": "u8"
+            "name": "price",
+            "type": "u128"
           },
           {
-            "name": "signed_report",
-            "type": "bytes"
-          }
-        ]
-      },
-      {
-        "name": "place_sell_order",
-        "docs": [
-          "Place a KYC-gated sell order — event-only, no token escrow"
-        ],
-        "discriminator": [
-          254,
-          177,
-          180,
-          104,
-          171,
-          194,
-          79,
-          86
-        ],
-        "accounts": [
-          {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
+            "name": "limit_price",
+            "type": "u128"
           },
-          {
-            "name": "oracle_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    97,
-                    99,
-                    108,
-                    101,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "oracle_config.token_mint",
-                  "account": "OracleConfig"
-                }
-              ]
-            }
-          },
-          {
-            "name": "chainlink_verifier_program"
-          },
-          {
-            "name": "verifier_config_pda"
-          },
-          {
-            "name": "access_controller"
-          },
-          {
-            "name": "report_config_pda"
-          },
-          {
-            "name": "pending_order",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "user"
-                },
-                {
-                  "kind": "arg",
-                  "path": "order_id"
-                }
-              ]
-            }
-          },
-          {
-            "name": "identity",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    105,
-                    100,
-                    101,
-                    110,
-                    116,
-                    105,
-                    116,
-                    121
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "user"
-                }
-              ],
-              "program": {
-                "kind": "const",
-                "value": [
-                  136,
-                  13,
-                  91,
-                  215,
-                  16,
-                  96,
-                  96,
-                  232,
-                  196,
-                  77,
-                  86,
-                  238,
-                  89,
-                  41,
-                  46,
-                  26,
-                  17,
-                  193,
-                  171,
-                  101,
-                  81,
-                  101,
-                  42,
-                  108,
-                  174,
-                  176,
-                  116,
-                  118,
-                  191,
-                  2,
-                  172,
-                  198
-                ]
-              }
-            }
-          },
-          {
-            "name": "user",
-            "docs": [
-              "The user placing the order"
-            ],
-            "signer": true
-          },
-          {
-            "name": "orders_authority",
-            "docs": [
-              "OrdersAuthority vault PDA — pays rent for PendingOrder creation"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
-          }
-        ],
-        "args": [
           {
             "name": "order_id",
             "type": "u64"
           },
           {
-            "name": "ticker",
-            "type": "string"
+            "name": "created_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuyOrderFulfilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "order_id",
+            "type": "u64"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_amount",
+            "type": "u64"
           },
           {
             "name": "asset_amount",
             "type": "u64"
-          },
-          {
-            "name": "limit_price",
-            "type": "u64"
-          },
-          {
-            "name": "identity_bump",
-            "type": "u8"
-          },
-          {
-            "name": "signed_report",
-            "type": "bytes"
           }
         ]
-      },
-      {
-        "name": "update_oracle_config",
-        "docs": [
-          "Update an oracle config (authority only) — change feed_id, decimals, or staleness"
-        ],
-        "discriminator": [
-          83,
-          16,
-          11,
-          254,
-          57,
-          99,
-          156,
-          58
-        ],
-        "accounts": [
+      }
+    },
+    {
+      "name": "OracleConfig",
+      "docs": [
+        "Chainlink Data Streams oracle configuration for a specific token",
+        "Seed: [\"oracle_config\", token_mint]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
+            "name": "token_mint",
+            "docs": [
+              "The token mint this oracle is for"
+            ],
+            "type": "pubkey"
           },
-          {
-            "name": "oracle_config",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    97,
-                    99,
-                    108,
-                    101,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                },
-                {
-                  "kind": "account",
-                  "path": "oracle_config.token_mint",
-                  "account": "OracleConfig"
-                }
-              ]
-            }
-          },
-          {
-            "name": "authority",
-            "signer": true,
-            "relations": [
-              "order_config"
-            ]
-          }
-        ],
-        "args": [
           {
             "name": "feed_id",
+            "docs": [
+              "Chainlink Data Streams feed ID (32-byte identifier for the asset, e.g. AAPL)"
+            ],
             "type": {
               "array": [
                 "u8",
@@ -1385,728 +2165,282 @@
             }
           },
           {
+            "name": "max_staleness_seconds",
+            "docs": [
+              "Maximum allowed staleness for the price feed in seconds"
+            ],
+            "type": "i64"
+          },
+          {
             "name": "price_decimals",
+            "docs": [
+              "Decimal precision of mid_price from the feed (8 or 18, varies per feed)"
+            ],
             "type": "u8"
           },
           {
-            "name": "max_staleness_seconds",
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "order_id",
+            "type": "u64"
+          },
+          {
+            "name": "order_type",
+            "type": "u8"
+          },
+          {
+            "name": "usdc_returned",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderConfig",
+      "docs": [
+        "Global config for the orders program",
+        "Seed: [\"order_config\"]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Admin authority — updates prices, fulfills orders, withdraws USDC"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_mint",
+            "docs": [
+              "USDC token mint"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "docs": [
+              "Whether order placement is paused"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrdersAuthority",
+      "docs": [
+        "PDA signer that owns the USDC escrow",
+        "Seed: [\"orders_authority\"]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PendingOrder",
+      "docs": [
+        "A pending buy or sell order, closeable on fill/cancel",
+        "Seed: [\"order\", user, order_id.to_le_bytes()]",
+        "Rent is paid by the OrdersAuthority vault PDA and returned on close."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "docs": [
+              "The user who placed the order"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "order_type",
+            "docs": [
+              "0 = Buy, 1 = Sell"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "token_mint",
+            "docs": [
+              "The token mint being bought/sold"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_amount",
+            "docs": [
+              "USDC amount (escrowed for buy orders)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "asset_amount",
+            "docs": [
+              "Calculated asset amount"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "docs": [
+              "Price at order time (18 decimals, can exceed u64 for prices > ~$18)"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "limit_price",
+            "docs": [
+              "User-specified limit price"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "Order creation timestamp"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "order_id",
+            "docs": [
+              "Caller-provided unique order ID"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SellOrderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "ticker",
+            "type": "string"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_amount",
+            "type": "u64"
+          },
+          {
+            "name": "asset_amount",
+            "type": "u64"
+          },
+          {
+            "name": "price",
+            "type": "u128"
+          },
+          {
+            "name": "limit_price",
+            "type": "u128"
+          },
+          {
+            "name": "order_id",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
             "type": "i64"
           }
         ]
-      },
-      {
-        "name": "withdraw_usdc",
-        "docs": [
-          "Withdraw USDC from the escrow (authority only)"
-        ],
-        "discriminator": [
-          114,
-          49,
-          72,
-          184,
-          27,
-          156,
-          243,
-          155
-        ],
-        "accounts": [
+      }
+    },
+    {
+      "name": "SellOrderFulfilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            "name": "order_config",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    95,
-                    99,
-                    111,
-                    110,
-                    102,
-                    105,
-                    103
-                  ]
-                }
-              ]
-            }
+            "name": "user",
+            "type": "pubkey"
           },
           {
-            "name": "usdc_escrow",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    117,
-                    115,
-                    100,
-                    99,
-                    95,
-                    101,
-                    115,
-                    99,
-                    114,
-                    111,
-                    119
-                  ]
-                }
-              ]
-            }
+            "name": "order_id",
+            "type": "u64"
           },
           {
-            "name": "orders_authority",
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    111,
-                    114,
-                    100,
-                    101,
-                    114,
-                    115,
-                    95,
-                    97,
-                    117,
-                    116,
-                    104,
-                    111,
-                    114,
-                    105,
-                    116,
-                    121
-                  ]
-                }
-              ]
-            }
+            "name": "token_mint",
+            "type": "pubkey"
           },
           {
-            "name": "authority_usdc_account",
-            "docs": [
-              "Authority's USDC token account"
-            ],
-            "writable": true
+            "name": "usdc_amount",
+            "type": "u64"
           },
+          {
+            "name": "asset_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UsdcWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
             "name": "authority",
-            "signer": true,
-            "relations": [
-              "order_config"
-            ]
+            "type": "pubkey"
           },
-          {
-            "name": "token_program",
-            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          }
-        ],
-        "args": [
           {
             "name": "amount",
             "type": "u64"
           }
         ]
       }
-    ],
-    "accounts": [
-      {
-        "name": "OracleConfig",
-        "discriminator": [
-          133,
-          196,
-          152,
-          50,
-          27,
-          21,
-          145,
-          254
-        ]
-      },
-      {
-        "name": "OrderConfig",
-        "discriminator": [
-          33,
-          99,
-          157,
-          195,
-          47,
-          105,
-          13,
-          57
-        ]
-      },
-      {
-        "name": "OrdersAuthority",
-        "discriminator": [
-          171,
-          190,
-          198,
-          185,
-          71,
-          196,
-          124,
-          231
-        ]
-      },
-      {
-        "name": "PendingOrder",
-        "discriminator": [
-          37,
-          33,
-          135,
-          93,
-          153,
-          120,
-          206,
-          95
-        ]
-      }
-    ],
-    "events": [
-      {
-        "name": "BuyOrderCreated",
-        "discriminator": [
-          110,
-          19,
-          133,
-          233,
-          185,
-          79,
-          4,
-          170
-        ]
-      },
-      {
-        "name": "BuyOrderFulfilled",
-        "discriminator": [
-          172,
-          33,
-          30,
-          94,
-          211,
-          102,
-          216,
-          54
-        ]
-      },
-      {
-        "name": "OrderCancelled",
-        "discriminator": [
-          108,
-          56,
-          128,
-          68,
-          168,
-          113,
-          168,
-          239
-        ]
-      },
-      {
-        "name": "SellOrderCreated",
-        "discriminator": [
-          24,
-          91,
-          248,
-          209,
-          136,
-          163,
-          239,
-          240
-        ]
-      },
-      {
-        "name": "SellOrderFulfilled",
-        "discriminator": [
-          8,
-          4,
-          10,
-          145,
-          25,
-          223,
-          46,
-          179
-        ]
-      },
-      {
-        "name": "UsdcWithdrawn",
-        "discriminator": [
-          55,
-          162,
-          160,
-          117,
-          221,
-          33,
-          197,
-          163
-        ]
-      }
-    ],
-    "errors": [
-      {
-        "code": 6000,
-        "name": "Unauthorized",
-        "msg": "Unauthorized"
-      },
-      {
-        "code": 6001,
-        "name": "Paused",
-        "msg": "Orders are paused"
-      },
-      {
-        "code": 6002,
-        "name": "ZeroPrice",
-        "msg": "Price feed has zero price"
-      },
-      {
-        "code": 6003,
-        "name": "KycNotVerified",
-        "msg": "KYC identity not verified"
-      },
-      {
-        "code": 6004,
-        "name": "IdentityMismatch",
-        "msg": "Identity authority does not match user"
-      },
-      {
-        "code": 6005,
-        "name": "InvalidIdentity",
-        "msg": "Invalid identity account"
-      },
-      {
-        "code": 6006,
-        "name": "MathOverflow",
-        "msg": "Math overflow"
-      },
-      {
-        "code": 6007,
-        "name": "InvalidAccount",
-        "msg": "Invalid account"
-      },
-      {
-        "code": 6008,
-        "name": "NotBuyOrder",
-        "msg": "Order is not a buy order"
-      },
-      {
-        "code": 6009,
-        "name": "OraclePriceStale",
-        "msg": "Oracle price is stale"
-      },
-      {
-        "code": 6010,
-        "name": "InvalidPriceFeed",
-        "msg": "Invalid price feed"
-      },
-      {
-        "code": 6011,
-        "name": "NotSellOrder",
-        "msg": "Order is not a sell order"
-      },
-      {
-        "code": 6012,
-        "name": "TokenMintMismatch",
-        "msg": "Token mint mismatch"
-      },
-      {
-        "code": 6013,
-        "name": "SstsCpiFailed",
-        "msg": "SSTS CPI failed"
-      },
-      {
-        "code": 6014,
-        "name": "InsufficientEscrowBalance",
-        "msg": "Insufficient escrow balance"
-      },
-      {
-        "code": 6015,
-        "name": "InsufficientVaultBalance",
-        "msg": "Vault has insufficient lamports for rent"
-      }
-    ],
-    "types": [
-      {
-        "name": "BuyOrderCreated",
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "user",
-              "type": "pubkey"
-            },
-            {
-              "name": "ticker",
-              "type": "string"
-            },
-            {
-              "name": "token_mint",
-              "type": "pubkey"
-            },
-            {
-              "name": "usdc_amount",
-              "type": "u64"
-            },
-            {
-              "name": "asset_amount",
-              "type": "u64"
-            },
-            {
-              "name": "price",
-              "type": "u64"
-            },
-            {
-              "name": "limit_price",
-              "type": "u64"
-            },
-            {
-              "name": "order_id",
-              "type": "u64"
-            },
-            {
-              "name": "created_at",
-              "type": "i64"
-            }
-          ]
-        }
-      },
-      {
-        "name": "BuyOrderFulfilled",
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "user",
-              "type": "pubkey"
-            },
-            {
-              "name": "order_id",
-              "type": "u64"
-            },
-            {
-              "name": "token_mint",
-              "type": "pubkey"
-            },
-            {
-              "name": "usdc_amount",
-              "type": "u64"
-            },
-            {
-              "name": "asset_amount",
-              "type": "u64"
-            }
-          ]
-        }
-      },
-      {
-        "name": "OracleConfig",
-        "docs": [
-          "Chainlink Data Streams oracle configuration for a specific token",
-          "Seed: [\"oracle_config\", token_mint]"
-        ],
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "token_mint",
-              "docs": [
-                "The token mint this oracle is for"
-              ],
-              "type": "pubkey"
-            },
-            {
-              "name": "feed_id",
-              "docs": [
-                "Chainlink Data Streams feed ID (32-byte identifier for the asset, e.g. AAPL)"
-              ],
-              "type": {
-                "array": [
-                  "u8",
-                  32
-                ]
-              }
-            },
-            {
-              "name": "max_staleness_seconds",
-              "docs": [
-                "Maximum allowed staleness for the price feed in seconds"
-              ],
-              "type": "i64"
-            },
-            {
-              "name": "price_decimals",
-              "docs": [
-                "Decimal precision of mid_price from the feed (8 or 18, varies per feed)"
-              ],
-              "type": "u8"
-            },
-            {
-              "name": "bump",
-              "docs": [
-                "Bump seed for PDA"
-              ],
-              "type": "u8"
-            }
-          ]
-        }
-      },
-      {
-        "name": "OrderCancelled",
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "user",
-              "type": "pubkey"
-            },
-            {
-              "name": "order_id",
-              "type": "u64"
-            },
-            {
-              "name": "order_type",
-              "type": "u8"
-            },
-            {
-              "name": "usdc_returned",
-              "type": "u64"
-            }
-          ]
-        }
-      },
-      {
-        "name": "OrderConfig",
-        "docs": [
-          "Global config for the orders program",
-          "Seed: [\"order_config\"]"
-        ],
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "authority",
-              "docs": [
-                "Admin authority — updates prices, fulfills orders, withdraws USDC"
-              ],
-              "type": "pubkey"
-            },
-            {
-              "name": "usdc_mint",
-              "docs": [
-                "USDC token mint"
-              ],
-              "type": "pubkey"
-            },
-            {
-              "name": "paused",
-              "docs": [
-                "Whether order placement is paused"
-              ],
-              "type": "bool"
-            },
-            {
-              "name": "bump",
-              "docs": [
-                "Bump seed for PDA"
-              ],
-              "type": "u8"
-            }
-          ]
-        }
-      },
-      {
-        "name": "OrdersAuthority",
-        "docs": [
-          "PDA signer that owns the USDC escrow",
-          "Seed: [\"orders_authority\"]"
-        ],
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "bump",
-              "docs": [
-                "Bump seed for PDA"
-              ],
-              "type": "u8"
-            }
-          ]
-        }
-      },
-      {
-        "name": "PendingOrder",
-        "docs": [
-          "A pending buy or sell order, closeable on fill/cancel",
-          "Seed: [\"order\", user, order_id.to_le_bytes()]",
-          "Rent is paid by the OrdersAuthority vault PDA and returned on close."
-        ],
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "user",
-              "docs": [
-                "The user who placed the order"
-              ],
-              "type": "pubkey"
-            },
-            {
-              "name": "order_type",
-              "docs": [
-                "0 = Buy, 1 = Sell"
-              ],
-              "type": "u8"
-            },
-            {
-              "name": "token_mint",
-              "docs": [
-                "The token mint being bought/sold"
-              ],
-              "type": "pubkey"
-            },
-            {
-              "name": "usdc_amount",
-              "docs": [
-                "USDC amount (escrowed for buy orders)"
-              ],
-              "type": "u64"
-            },
-            {
-              "name": "asset_amount",
-              "docs": [
-                "Calculated asset amount"
-              ],
-              "type": "u64"
-            },
-            {
-              "name": "price",
-              "docs": [
-                "Price at order time"
-              ],
-              "type": "u64"
-            },
-            {
-              "name": "limit_price",
-              "docs": [
-                "User-specified limit price"
-              ],
-              "type": "u64"
-            },
-            {
-              "name": "created_at",
-              "docs": [
-                "Order creation timestamp"
-              ],
-              "type": "i64"
-            },
-            {
-              "name": "order_id",
-              "docs": [
-                "Caller-provided unique order ID"
-              ],
-              "type": "u64"
-            },
-            {
-              "name": "bump",
-              "docs": [
-                "Bump seed for PDA"
-              ],
-              "type": "u8"
-            }
-          ]
-        }
-      },
-      {
-        "name": "SellOrderCreated",
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "user",
-              "type": "pubkey"
-            },
-            {
-              "name": "ticker",
-              "type": "string"
-            },
-            {
-              "name": "token_mint",
-              "type": "pubkey"
-            },
-            {
-              "name": "usdc_amount",
-              "type": "u64"
-            },
-            {
-              "name": "asset_amount",
-              "type": "u64"
-            },
-            {
-              "name": "price",
-              "type": "u64"
-            },
-            {
-              "name": "limit_price",
-              "type": "u64"
-            },
-            {
-              "name": "order_id",
-              "type": "u64"
-            },
-            {
-              "name": "created_at",
-              "type": "i64"
-            }
-          ]
-        }
-      },
-      {
-        "name": "SellOrderFulfilled",
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "user",
-              "type": "pubkey"
-            },
-            {
-              "name": "order_id",
-              "type": "u64"
-            },
-            {
-              "name": "token_mint",
-              "type": "pubkey"
-            },
-            {
-              "name": "usdc_amount",
-              "type": "u64"
-            },
-            {
-              "name": "asset_amount",
-              "type": "u64"
-            }
-          ]
-        }
-      },
-      {
-        "name": "UsdcWithdrawn",
-        "type": {
-          "kind": "struct",
-          "fields": [
-            {
-              "name": "authority",
-              "type": "pubkey"
-            },
-            {
-              "name": "amount",
-              "type": "u64"
-            }
-          ]
-        }
-      }
-    ]
-  }
+    }
+  ]
+}
