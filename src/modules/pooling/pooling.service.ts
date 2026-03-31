@@ -110,7 +110,9 @@ export class PoolingService {
             `  User: ${order.user.toString()}\n` +
             `  Ticker: ${order.ticker}\n` +
             `  Order ID: ${order.orderId.toString()}\n` +
-            `  Transaction: ${orderData.txHash}`,
+            `  Transaction: ${orderData.txHash}\n` +
+            `  AssetAmount: ${order.assetAmount}\n` +
+            `  AssetAmount: ${(Number(order.assetAmount.toString()) / 1e6).toFixed(9)}`,
           );
 
           try {

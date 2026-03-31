@@ -1823,7 +1823,7 @@
         {
           "name": "authority_usdc_account",
           "docs": [
-            "Authority's USDC token account"
+            "Alpaca USDC deposit wallet — hardcoded destination, can only send to Alpaca"
           ],
           "writable": true
         },

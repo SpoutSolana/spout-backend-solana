@@ -59,7 +59,7 @@ export class AlpacaService {
       };
 
       const response = await axios.post(
-        `https://broker-api.sandbox.alpaca.markets/v1/trading/accounts/${this.accountId}/orders`,
+        `https://broker-api.alpaca.markets/v1/trading/accounts/${this.accountId}/orders`,
         orderRequest,
         {
           headers: {
@@ -88,7 +88,7 @@ export class AlpacaService {
       ).toString('base64');
 
       const response = await axios.get(
-        `https://broker-api.sandbox.alpaca.markets/v1/trading/accounts/${this.accountId}/orders/${orderId}`,
+        `https://broker-api.alpaca.markets/v1/trading/accounts/${this.accountId}/orders/${orderId}`,
         {
           headers: {
             accept: 'application/json',
@@ -131,7 +131,7 @@ export class AlpacaService {
       };
 
       const response = await axios.post(
-        `https://broker-api.sandbox.alpaca.markets/v1/trading/accounts/${this.accountId}/orders`,
+        `https://broker-api.alpaca.markets/v1/trading/accounts/${this.accountId}/orders`,
         orderRequest,
         {
           headers: {
