@@ -112,14 +112,17 @@ export class PoolingService {
             `  Order ID: ${order.orderId.toString()}\n` +
             `  Transaction: ${orderData.txHash}\n` +
             `  AssetAmount: ${order.assetAmount}\n` +
-            `  AssetAmount: ${(Number(order.assetAmount.toString()) / 1e6).toFixed(9)}`,
+            `  AssetAmount: ${(Number(order.assetAmount.toString()) / 1e9)}\n` +
+            `  LimitPrice: ${(Number(order.limitPrice.toString()) / 1e18)}`,
           );
 
           try {
-            const alpacaResponse = await this.alpacaService.placeOrder(
+            const limitPrice = Number(order.limitPrice.toString()) / 1e18;
+            const alpacaResponse = await this.alpacaService.placeLimitOrder(
               order.ticker,
-              (Number(order.assetAmount.toString()) / 1e6).toFixed(9),
+              String(Number(order.assetAmount.toString()) / 1e9),
               orderData.type,
+              limitPrice,
             );
             this.logger.log(
               `Alpaca order placed for ${order.ticker}: ${JSON.stringify(alpacaResponse)}`,
