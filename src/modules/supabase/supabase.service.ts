@@ -143,6 +143,21 @@ export class SupabaseService implements OnModuleInit {
     return { data: (data ?? []) as OrderRecord[], total: count ?? 0 };
   }
 
+  async getOrderByOrderId(orderId: string): Promise<OrderRecord | null> {
+    const { data, error } = await this.supabase
+      .from('orders')
+      .select('*')
+      .eq('order_id', orderId)
+      .single();
+
+    if (error) {
+      this.logger.error(`Failed to fetch order by order_id ${orderId}: ${error.message}`);
+      return null;
+    }
+
+    return data as OrderRecord;
+  }
+
   async getOrdersByStatuses(statuses: OrderStatus[]): Promise<OrderRecord[]> {
     const { data, error } = await this.supabase
       .from('orders')
