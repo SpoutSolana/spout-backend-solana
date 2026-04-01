@@ -109,6 +109,34 @@ export class AlpacaService {
     }
   }
 
+  async cancelOrder(orderId: string): Promise<any> {
+    try {
+      const credentials = Buffer.from(
+        `${this.apiKeyId}:${this.apiSecretKey}`,
+      ).toString('base64');
+
+      const response = await axios.delete(
+        `https://broker-api.alpaca.markets/v1/trading/accounts/${this.accountId}/orders/${orderId}`,
+        {
+          headers: {
+            accept: 'application/json',
+            authorization: `Basic ${credentials}`,
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error: any) {
+      this.logger.error(
+        'Alpaca cancel order error:',
+        error.response?.data || error.message,
+      );
+      throw new Error(
+        `Failed to cancel order: ${error.response?.data?.message || error.message}`,
+      );
+    }
+  }
+
   async placeLimitOrder(
     symbol: string,
     qty: string,
